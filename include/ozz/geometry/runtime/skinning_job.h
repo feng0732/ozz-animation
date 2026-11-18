@@ -78,19 +78,29 @@ struct OZZ_GEOMETRY_DLL SkinningJob {
   // Default constructor, initializes default values.
   SkinningJob();
 
-  // Validates job parameters.
+  // Validates job structural parameters (ranges, strides and buffers
+  // consistency).
   // Returns true for a valid job, false otherwise:
   // - if any range is invalid. See each range description.
   // - if normals are provided but positions aren't.
   // - if tangents are provided but normals aren't.
   // - if no output is provided while an input is. For example, if input normals
   // are provided, then output normals must also.
+  // Note that weight values aren't checked here, as they are only read while
+  // the job runs. See Run() for weight validity rules.
   bool Validate() const;
 
   // Runs job's skinning task.
   // The job is validated before any operation is performed, see Validate() for
-  // more details.
-  // Returns false if *this job is not valid.
+  // structural validation details. Weights are then validated before any output
+  // buffer is written:
+  // - Every provided weight must be a finite (not NaN nor infinite) and non
+  // negative float.
+  // - The restored last weight (1 minus the sum of the provided weights, see
+  // joint_weights) must also be finite and non negative.
+  // Returns false if *this job is not valid, including if any weight is not.
+  // In case of failure, no output position, normal nor tangent is written, so
+  // output buffers are left untouched (no partially transformed vertex).
   bool Run() const;
 
   // Number of vertices to transform. All input and output arrays must store at
@@ -133,6 +143,9 @@ struct OZZ_GEOMETRY_DLL SkinningJob {
   // is "influences_max - 1". The weight for the last joint (for each vertex) is
   // restored at runtime thanks to the fact that the sum of the weights for each
   // vertex is 1.
+  // Every provided weight must be finite and non negative, and the restored
+  // last weight (1 minus the sum of the provided weights) must be finite and
+  // non negative too. Otherwise Run() fails and doesn't write any output.
   // Each vertex has (influences_max - 1) number of weights, meaning that the
   // size of this array must be at least (influences_max - 1)* vertex_count.
   span<const float> joint_weights;

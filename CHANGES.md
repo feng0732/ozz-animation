@@ -1,3 +1,14 @@
+Unreleased
+----------
+
+* Library
+  - [geometry] Validates matrix palette skinning weights in `SkinningJob::Run`,
+    rejecting non finite (NaN or infinite) and negative provided weights, as
+    well as a negative or non finite restored last weight. On failure `Run`
+    returns false without writing any output position, normal or tangent. This
+    boundary is shared by every influence count implementation, while
+    canonical weights keep producing the same results.
+
 Release version 0.17.0
 ----------------------
 

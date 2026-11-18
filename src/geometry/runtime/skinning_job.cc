@@ -28,11 +28,58 @@
 #include "ozz/geometry/runtime/skinning_job.h"
 
 #include <cassert>
+#include <cmath>
+#include <cstdint>
 
 #include "ozz/base/maths/simd_math.h"
 
 namespace ozz {
 namespace geometry {
+
+namespace {
+// Validates every weight of the job.
+// Only the influences_count - 1 first weights are provided per vertex, the
+// last one is restored so that the sum of the weights of a vertex is 1.
+// Every provided and restored weight must be finite and non negative.
+// This runs before any output buffer is written, so a failure leaves outputs
+// untouched. The same boundary is shared by every influence count code path
+// (1 to 4 specialized implementations and the generic n-influences one).
+bool ValidateWeights(const SkinningJob& _job) {
+  // A single influence implicitly has a weight of 1: there's no weight to
+  // validate.
+  if (_job.influences_count <= 1) {
+    return true;
+  }
+
+  const int weights_per_vertex = _job.influences_count - 1;
+  const uint8_t* weights =
+      reinterpret_cast<const uint8_t*>(_job.joint_weights.begin());
+
+  for (int i = 0; i < _job.vertex_count; ++i) {
+    const float* vertex_weights =
+        reinterpret_cast<const float*>(weights +
+                                       _job.joint_weights_stride * i);
+
+    // Provided weights must be finite and non negative.
+    float sum = 0.f;
+    for (int j = 0; j < weights_per_vertex; ++j) {
+      const float weight = vertex_weights[j];
+      if (!std::isfinite(weight) || weight < 0.f) {
+        return false;
+      }
+      sum += weight;
+    }
+
+    // The restored last weight must be finite and non negative too.
+    const float last_weight = 1.f - sum;
+    if (!std::isfinite(last_weight) || last_weight < 0.f) {
+      return false;
+    }
+  }
+
+  return true;
+}
+}  // namespace
 
 SkinningJob::SkinningJob()
     : vertex_count(0),
@@ -478,6 +525,12 @@ bool SkinningJob::Run() const {
   // Skinning function algorithm doesn't support the case.
   if (vertex_count == 0) {
     return true;
+  }
+
+  // Validates weights before any output is written, so a failure leaves every
+  // output buffer untouched.
+  if (!ValidateWeights(*this)) {
+    return false;
   }
 
   // Find skinning function index.

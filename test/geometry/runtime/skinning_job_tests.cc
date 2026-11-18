@@ -25,6 +25,9 @@
 //                                                                            //
 //----------------------------------------------------------------------------//
 
+#include <cmath>
+#include <limits>
+
 #include "gtest/gtest.h"
 #include "ozz/base/containers/vector.h"
 #include "ozz/base/log.h"
@@ -961,19 +964,25 @@ TEST(JobResult, SkinningJob) {
     EXPECT_FLOAT_EQ(.03f, out_tangents[5]);
   }
 
+  // 5 influences use their own canonical (non negative, summing to 1) weights.
+  // The last weight is restored at runtime from the 4 provided ones.
+  const float joint_weights_5[8] = {
+      .5f, .25f, .15f, .05f,  // Restored last weight is .05.
+      .1f, .1f, .25f, .25f};  // Restored last weight is .3.
   base_job.influences_count = 5;
+  base_job.joint_weights = joint_weights_5;
 
   {  // P5
     SkinningJob job = base_job;
     EXPECT_TRUE(job.Run());
 
-    EXPECT_FLOAT_EQ(.55f, out_positions[0]);
-    EXPECT_FLOAT_EQ(3.2f, out_positions[1]);
-    EXPECT_FLOAT_EQ(3.15f, out_positions[2]);
+    EXPECT_FLOAT_EQ(.2f, out_positions[0]);
+    EXPECT_FLOAT_EQ(2.9f, out_positions[1]);
+    EXPECT_FLOAT_EQ(1.5f, out_positions[2]);
 
-    EXPECT_FLOAT_EQ(3.4f, out_positions[3]);
-    EXPECT_FLOAT_EQ(7.45f, out_positions[4]);
-    EXPECT_FLOAT_EQ(9.f, out_positions[5]);
+    EXPECT_FLOAT_EQ(2.65f, out_positions[3]);
+    EXPECT_FLOAT_EQ(6.8f, out_positions[4]);
+    EXPECT_FLOAT_EQ(6.15f, out_positions[5]);
   }
   {  // PN5
     SkinningJob job = base_job;
@@ -983,19 +992,19 @@ TEST(JobResult, SkinningJob) {
     job.out_normals_stride = sizeof(float) * 3;
     EXPECT_TRUE(job.Run());
 
-    EXPECT_FLOAT_EQ(.55f, out_positions[0]);
-    EXPECT_FLOAT_EQ(3.2f, out_positions[1]);
-    EXPECT_FLOAT_EQ(3.15f, out_positions[2]);
-    EXPECT_FLOAT_EQ(.02f, out_normals[0]);
-    EXPECT_FLOAT_EQ(.25f, out_normals[1]);
-    EXPECT_FLOAT_EQ(.21f, out_normals[2]);
+    EXPECT_FLOAT_EQ(.2f, out_positions[0]);
+    EXPECT_FLOAT_EQ(2.9f, out_positions[1]);
+    EXPECT_FLOAT_EQ(1.5f, out_positions[2]);
+    EXPECT_FLOAT_EQ(-.01f, out_normals[0]);
+    EXPECT_FLOAT_EQ(.23f, out_normals[1]);
+    EXPECT_FLOAT_EQ(.06f, out_normals[2]);
 
-    EXPECT_FLOAT_EQ(3.4f, out_positions[3]);
-    EXPECT_FLOAT_EQ(7.45f, out_positions[4]);
-    EXPECT_FLOAT_EQ(9.f, out_positions[5]);
-    EXPECT_FLOAT_EQ(.28f, out_normals[3]);
-    EXPECT_FLOAT_EQ(.625f, out_normals[4]);
-    EXPECT_FLOAT_EQ(.72f, out_normals[5]);
+    EXPECT_FLOAT_EQ(2.65f, out_positions[3]);
+    EXPECT_FLOAT_EQ(6.8f, out_positions[4]);
+    EXPECT_FLOAT_EQ(6.15f, out_positions[5]);
+    EXPECT_FLOAT_EQ(.2f, out_normals[3]);
+    EXPECT_FLOAT_EQ(.55f, out_normals[4]);
+    EXPECT_FLOAT_EQ(.42f, out_normals[5]);
   }
   {  // PitN5
     SkinningJob job = base_job;
@@ -1006,19 +1015,19 @@ TEST(JobResult, SkinningJob) {
     job.out_normals_stride = sizeof(float) * 3;
     EXPECT_TRUE(job.Run());
 
-    EXPECT_FLOAT_EQ(.55f, out_positions[0]);
-    EXPECT_FLOAT_EQ(3.2f, out_positions[1]);
-    EXPECT_FLOAT_EQ(3.15f, out_positions[2]);
-    EXPECT_FLOAT_EQ(.05f, out_normals[0]);
-    EXPECT_FLOAT_EQ(-.06f, out_normals[1]);
-    EXPECT_FLOAT_EQ(.15f, out_normals[2]);
+    EXPECT_FLOAT_EQ(.2f, out_positions[0]);
+    EXPECT_FLOAT_EQ(2.9f, out_positions[1]);
+    EXPECT_FLOAT_EQ(1.5f, out_positions[2]);
+    EXPECT_FLOAT_EQ(.07f, out_normals[0]);
+    EXPECT_FLOAT_EQ(-.08f, out_normals[1]);
+    EXPECT_FLOAT_EQ(.21f, out_normals[2]);
 
-    EXPECT_FLOAT_EQ(3.4f, out_positions[3]);
-    EXPECT_FLOAT_EQ(7.45f, out_positions[4]);
-    EXPECT_FLOAT_EQ(9.f, out_positions[5]);
-    EXPECT_FLOAT_EQ(.2f, out_normals[3]);
-    EXPECT_FLOAT_EQ(.1f, out_normals[4]);
-    EXPECT_FLOAT_EQ(.3f, out_normals[5]);
+    EXPECT_FLOAT_EQ(2.65f, out_positions[3]);
+    EXPECT_FLOAT_EQ(6.8f, out_positions[4]);
+    EXPECT_FLOAT_EQ(6.15f, out_positions[5]);
+    EXPECT_FLOAT_EQ(.32f, out_normals[3]);
+    EXPECT_FLOAT_EQ(.15f, out_normals[4]);
+    EXPECT_FLOAT_EQ(.48f, out_normals[5]);
   }
   {  // PNT5
     SkinningJob job = base_job;
@@ -1032,25 +1041,25 @@ TEST(JobResult, SkinningJob) {
     job.out_tangents_stride = sizeof(float) * 3;
     EXPECT_TRUE(job.Run());
 
-    EXPECT_FLOAT_EQ(.55f, out_positions[0]);
-    EXPECT_FLOAT_EQ(3.2f, out_positions[1]);
-    EXPECT_FLOAT_EQ(3.15f, out_positions[2]);
-    EXPECT_FLOAT_EQ(.02f, out_normals[0]);
-    EXPECT_FLOAT_EQ(.25f, out_normals[1]);
-    EXPECT_FLOAT_EQ(.21f, out_normals[2]);
-    EXPECT_FLOAT_EQ(.002f, out_tangents[0]);
-    EXPECT_FLOAT_EQ(.025f, out_tangents[1]);
-    EXPECT_FLOAT_EQ(.021f, out_tangents[2]);
+    EXPECT_FLOAT_EQ(.2f, out_positions[0]);
+    EXPECT_FLOAT_EQ(2.9f, out_positions[1]);
+    EXPECT_FLOAT_EQ(1.5f, out_positions[2]);
+    EXPECT_FLOAT_EQ(-.01f, out_normals[0]);
+    EXPECT_FLOAT_EQ(.23f, out_normals[1]);
+    EXPECT_FLOAT_EQ(.06f, out_normals[2]);
+    EXPECT_FLOAT_EQ(-.001f, out_tangents[0]);
+    EXPECT_FLOAT_EQ(.023f, out_tangents[1]);
+    EXPECT_FLOAT_EQ(.006f, out_tangents[2]);
 
-    EXPECT_FLOAT_EQ(3.4f, out_positions[3]);
-    EXPECT_FLOAT_EQ(7.45f, out_positions[4]);
-    EXPECT_FLOAT_EQ(9.f, out_positions[5]);
-    EXPECT_FLOAT_EQ(.28f, out_normals[3]);
-    EXPECT_FLOAT_EQ(.625f, out_normals[4]);
-    EXPECT_FLOAT_EQ(.72f, out_normals[5]);
-    EXPECT_FLOAT_EQ(.028f, out_tangents[3]);
-    EXPECT_FLOAT_EQ(.0625f, out_tangents[4]);
-    EXPECT_FLOAT_EQ(.072f, out_tangents[5]);
+    EXPECT_FLOAT_EQ(2.65f, out_positions[3]);
+    EXPECT_FLOAT_EQ(6.8f, out_positions[4]);
+    EXPECT_FLOAT_EQ(6.15f, out_positions[5]);
+    EXPECT_FLOAT_EQ(.2f, out_normals[3]);
+    EXPECT_FLOAT_EQ(.55f, out_normals[4]);
+    EXPECT_FLOAT_EQ(.42f, out_normals[5]);
+    EXPECT_FLOAT_EQ(.02f, out_tangents[3]);
+    EXPECT_FLOAT_EQ(.055f, out_tangents[4]);
+    EXPECT_FLOAT_EQ(.042f, out_tangents[5]);
   }
   {  // PitNT5
     SkinningJob job = base_job;
@@ -1065,25 +1074,239 @@ TEST(JobResult, SkinningJob) {
     job.out_tangents_stride = sizeof(float) * 3;
     EXPECT_TRUE(job.Run());
 
-    EXPECT_FLOAT_EQ(.55f, out_positions[0]);
-    EXPECT_FLOAT_EQ(3.2f, out_positions[1]);
-    EXPECT_FLOAT_EQ(3.15f, out_positions[2]);
-    EXPECT_FLOAT_EQ(.05f, out_normals[0]);
-    EXPECT_FLOAT_EQ(-.06f, out_normals[1]);
-    EXPECT_FLOAT_EQ(.15f, out_normals[2]);
-    EXPECT_FLOAT_EQ(.005f, out_tangents[0]);
-    EXPECT_FLOAT_EQ(-.006f, out_tangents[1]);
-    EXPECT_FLOAT_EQ(.015f, out_tangents[2]);
+    EXPECT_FLOAT_EQ(.2f, out_positions[0]);
+    EXPECT_FLOAT_EQ(2.9f, out_positions[1]);
+    EXPECT_FLOAT_EQ(1.5f, out_positions[2]);
+    EXPECT_FLOAT_EQ(.07f, out_normals[0]);
+    EXPECT_FLOAT_EQ(-.08f, out_normals[1]);
+    EXPECT_FLOAT_EQ(.21f, out_normals[2]);
+    EXPECT_FLOAT_EQ(.007f, out_tangents[0]);
+    EXPECT_FLOAT_EQ(-.008f, out_tangents[1]);
+    EXPECT_FLOAT_EQ(.021f, out_tangents[2]);
 
-    EXPECT_FLOAT_EQ(3.4f, out_positions[3]);
-    EXPECT_FLOAT_EQ(7.45f, out_positions[4]);
-    EXPECT_FLOAT_EQ(9.f, out_positions[5]);
-    EXPECT_FLOAT_EQ(.2f, out_normals[3]);
-    EXPECT_FLOAT_EQ(.1f, out_normals[4]);
-    EXPECT_FLOAT_EQ(.3f, out_normals[5]);
-    EXPECT_FLOAT_EQ(.02f, out_tangents[3]);
-    EXPECT_FLOAT_EQ(.01f, out_tangents[4]);
-    EXPECT_FLOAT_EQ(.03f, out_tangents[5]);
+    EXPECT_FLOAT_EQ(2.65f, out_positions[3]);
+    EXPECT_FLOAT_EQ(6.8f, out_positions[4]);
+    EXPECT_FLOAT_EQ(6.15f, out_positions[5]);
+    EXPECT_FLOAT_EQ(.32f, out_normals[3]);
+    EXPECT_FLOAT_EQ(.15f, out_normals[4]);
+    EXPECT_FLOAT_EQ(.48f, out_normals[5]);
+    EXPECT_FLOAT_EQ(.032f, out_tangents[3]);
+    EXPECT_FLOAT_EQ(.015f, out_tangents[4]);
+    EXPECT_FLOAT_EQ(.048f, out_tangents[5]);
+  }
+}
+
+// Tests weight validity boundaries shared by every influence count code path
+// (1 to 4 specialized implementations and the generic n-influences one), with
+// and without inverse transpose matrices.
+
+// Identity joint matrices keep input geometry unchanged on success.
+static const ozz::math::Float4x4 kIdentityMatrices[1] = {
+    ozz::math::Float4x4::identity()};
+
+// Distinct sentinel allows to detect any partial write in an output buffer.
+static constexpr float kWeightTestSentinel = -97531.2468f;
+
+TEST(JobWeights, SkinningJob) {
+  struct Context {
+    int vertex_count = 2;
+    int influences = 2;
+    ozz::vector<uint16_t> indices;
+    ozz::vector<float> weights;
+    float in_positions[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    float in_normals[6] = {.1f, .2f, .3f, .4f, .5f, .6f};
+    float in_tangents[6] = {.01f, .02f, .03f, .04f, .05f, .06f};
+    float out_positions[6];
+    float out_normals[6];
+    float out_tangents[6];
+
+    void FillSentinels() {
+      for (float& f : out_positions) f = kWeightTestSentinel;
+      for (float& f : out_normals) f = kWeightTestSentinel;
+      for (float& f : out_tangents) f = kWeightTestSentinel;
+    }
+
+    bool ExpectUntouched() const {
+      for (int i = 0; i < vertex_count * 3; ++i) {
+        if (out_positions[i] != kWeightTestSentinel ||
+            out_normals[i] != kWeightTestSentinel ||
+            out_tangents[i] != kWeightTestSentinel) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Builds a structurally valid job, with positions, normals and tangents.
+    SkinningJob Build(bool _use_it) {
+      SkinningJob job;
+      job.vertex_count = vertex_count;
+      job.influences_count = influences;
+      job.joint_matrices = ozz::make_span(kIdentityMatrices);
+      if (_use_it) {
+        job.joint_inverse_transpose_matrices = ozz::make_span(kIdentityMatrices);
+      }
+      job.joint_indices = ozz::make_span(indices);
+      job.joint_indices_stride = sizeof(uint16_t) * influences;
+      if (influences > 1) {
+        job.joint_weights = ozz::make_span(weights);
+        job.joint_weights_stride = sizeof(float) * (influences - 1);
+      }
+      job.in_positions = in_positions;
+      job.in_positions_stride = sizeof(float) * 3;
+      job.out_positions = out_positions;
+      job.out_positions_stride = sizeof(float) * 3;
+      job.in_normals = in_normals;
+      job.in_normals_stride = sizeof(float) * 3;
+      job.out_normals = out_normals;
+      job.out_normals_stride = sizeof(float) * 3;
+      job.in_tangents = in_tangents;
+      job.in_tangents_stride = sizeof(float) * 3;
+      job.out_tangents = out_tangents;
+      job.out_tangents_stride = sizeof(float) * 3;
+      return job;
+    }
+  };
+
+  // Canonical valid weights: every provided weight is positive and the
+  // restored last weight (1 - sum) is positive too.
+  auto valid_weights = [](int _influences, int _vertex) {
+    ozz::vector<float> weights(
+        static_cast<size_t>(_vertex) * (_influences - 1));
+    const float provided = 0.5f / _influences;
+    for (float& w : weights) w = provided;
+    return weights;
+  };
+
+  // Canonical inputs succeed for every influence count and both transform
+  // conventions, and produce finite outputs.
+  for (int influences = 1; influences <= 5; ++influences) {
+    for (int use_it = 0; use_it < 2; ++use_it) {
+      Context ctx;
+      ctx.influences = influences;
+      ctx.indices.resize(static_cast<size_t>(ctx.vertex_count) * influences,
+                         0);
+      ctx.weights = valid_weights(influences, ctx.vertex_count);
+      ctx.FillSentinels();
+
+      SkinningJob job = ctx.Build(use_it != 0);
+      EXPECT_TRUE(job.Validate());
+      EXPECT_TRUE(job.Run());
+      // Identity matrices: outputs are the inputs, untouched sentinels are
+      // fully overwritten with finite values.
+      for (int i = 0; i < ctx.vertex_count * 3; ++i) {
+        EXPECT_NE(ctx.out_positions[i], kWeightTestSentinel);
+        EXPECT_NE(ctx.out_normals[i], kWeightTestSentinel);
+        EXPECT_NE(ctx.out_tangents[i], kWeightTestSentinel);
+        EXPECT_TRUE(std::isfinite(ctx.out_positions[i]));
+        EXPECT_TRUE(std::isfinite(ctx.out_normals[i]));
+        EXPECT_TRUE(std::isfinite(ctx.out_tangents[i]));
+      }
+    }
+  }
+
+  // Every invalid weight category must fail for every multi-influence code
+  // path, with and without inverse transpose matrices, and leave every output
+  // position, normal and tangent untouched.
+  for (int influences = 2; influences <= 5; ++influences) {
+    for (int use_it = 0; use_it < 2; ++use_it) {
+      const int weights_per_vertex = influences - 1;
+
+      // Provided weight categories that must fail.
+      const float bad_values[] = {-0.01f,
+                                  std::numeric_limits<float>::quiet_NaN(),
+                                  std::numeric_limits<float>::infinity(),
+                                  -std::numeric_limits<float>::infinity()};
+      for (float bad : bad_values) {
+        for (int bad_index = 0; bad_index < weights_per_vertex; ++bad_index) {
+          Context ctx;
+          ctx.influences = influences;
+          ctx.indices.resize(
+              static_cast<size_t>(ctx.vertex_count) * influences, 0);
+          ctx.weights = valid_weights(influences, ctx.vertex_count);
+          ctx.weights[bad_index] = bad;  // First vertex, one bad weight.
+          ctx.FillSentinels();
+
+          SkinningJob job = ctx.Build(use_it != 0);
+          EXPECT_TRUE(job.Validate());  // Structure is still valid.
+          EXPECT_FALSE(job.Run());
+          EXPECT_TRUE(ctx.ExpectUntouched());
+        }
+      }
+
+      // Restored last weight negative: provided weights alone are valid, but
+      // their sum exceeds 1.
+      {
+        Context ctx;
+        ctx.influences = influences;
+        ctx.indices.resize(static_cast<size_t>(ctx.vertex_count) * influences,
+                           0);
+        ctx.weights = valid_weights(influences, ctx.vertex_count);
+        for (int j = 0; j < weights_per_vertex; ++j) {
+          ctx.weights[j] = 1.f / weights_per_vertex;  // Sum is 1: last is 0...
+        }
+        ctx.weights[0] += 0.01f;  // ...now the restored last weight is < 0.
+        ctx.FillSentinels();
+
+        SkinningJob job = ctx.Build(use_it != 0);
+        EXPECT_TRUE(job.Validate());
+        EXPECT_FALSE(job.Run());
+        EXPECT_TRUE(ctx.ExpectUntouched());
+      }
+    }
+  }
+
+  // The historical n-influences data set restored a negative last weight
+  // (provided weights summing to 1.1): it is an explicit failure now.
+  for (int use_it = 0; use_it < 2; ++use_it) {
+    Context ctx;
+    ctx.vertex_count = 1;
+    ctx.influences = 5;
+    ctx.indices.assign(5, 0);
+    ctx.weights = {.5f, .25f, .25f, .1f};  // Sum 1.1, restored weight -0.1.
+    ctx.FillSentinels();
+
+    SkinningJob job = ctx.Build(use_it != 0);
+    EXPECT_TRUE(job.Validate());
+    EXPECT_FALSE(job.Run());
+    EXPECT_TRUE(ctx.ExpectUntouched());
+  }
+
+  // A bad weight on any vertex fails the whole job: no earlier vertex may be
+  // partially updated either.
+  for (int use_it = 0; use_it < 2; ++use_it) {
+    Context ctx;
+    ctx.influences = 2;
+    ctx.indices.assign(static_cast<size_t>(ctx.vertex_count) * ctx.influences,
+                       0);
+    ctx.weights = valid_weights(ctx.influences, ctx.vertex_count);
+    ctx.weights[ctx.influences - 1] = -0.25f;  // Bad weight of the 2nd vertex.
+    ctx.FillSentinels();
+
+    SkinningJob job = ctx.Build(use_it != 0);
+    EXPECT_TRUE(job.Validate());
+    EXPECT_FALSE(job.Run());
+    EXPECT_TRUE(ctx.ExpectUntouched());
+  }
+
+  // A restored last weight of exactly 0 is a valid boundary, as are zero
+  // provided weights.
+  for (int use_it = 0; use_it < 2; ++use_it) {
+    Context ctx;
+    ctx.influences = 2;
+    ctx.indices.assign(static_cast<size_t>(ctx.vertex_count) * ctx.influences,
+                       0);
+    ctx.weights = {1.f, 0.f};  // First vertex: last weight 0; second: w0 0.
+    ctx.FillSentinels();
+
+    SkinningJob job = ctx.Build(use_it != 0);
+    EXPECT_TRUE(job.Validate());
+    EXPECT_TRUE(job.Run());
+    for (int i = 0; i < ctx.vertex_count * 3; ++i) {
+      EXPECT_NE(ctx.out_positions[i], kWeightTestSentinel);
+      EXPECT_NE(ctx.out_normals[i], kWeightTestSentinel);
+      EXPECT_NE(ctx.out_tangents[i], kWeightTestSentinel);
+    }
   }
 }
 
@@ -1119,7 +1342,9 @@ TEST(Benchmark, SkinningJob) {
       vertex.indices[j] = j % joint_count;
     }
     for (size_t j = 0; j < OZZ_ARRAY_SIZE(vertex.weights); ++j) {
-      vertex.weights[j] = 1.f;
+      // Normalized weights: the (stripped) last influence restores the
+      // remaining weight, so every provided and restored weight is positive.
+      vertex.weights[j] = 1.f / OZZ_ARRAY_SIZE(vertex.indices);
     }
 
     const float cpnt = std::sqrt(1.f / 3.f);
