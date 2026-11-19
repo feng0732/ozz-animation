@@ -51,6 +51,19 @@ struct RawQuaternionTrack;
 // isolate rotation around y axis.
 // Motion is computed as the difference from a reference, which can be the
 // identity/global, the skeleton rest pose, or the animation's first frame.
+//
+// Motion is extracted from the root joint model-space transform rather than
+// from its local transform, so selecting a non top level joint still captures
+// all of its parent joints motion. Position and rotation, as well as their
+// absolute, skeleton rest pose and first frame references, are all computed
+// in model space. Component selection semantics (position axes and rotation
+// yaw/pitch/roll) are unchanged.
+// When baking a non top level joint, the selected joint is re-keyed on the
+// union of its hierarchy and sub-tree keyframe times, so that the selected
+// joint and every joint in its sub-tree keep an identical model-space pose at
+// every original keyframe time, even when parent and child keyframes are not
+// aligned. A top level joint (no parent) follows the original keyframe based
+// processing unchanged.
 class OZZ_ANIMOFFLINE_DLL MotionExtractor {
  public:
   // Executes extraction based on provided settings.
@@ -62,11 +75,12 @@ class OZZ_ANIMOFFLINE_DLL MotionExtractor {
   // Index of the joint that will be used as root to extract motion.
   int root_joint = 0;
 
-  // Defines the reference transform to use while extracting root motion.
+  // Defines the model-space reference transform to use while extracting root
+  // motion.
   enum class Reference {
-    kAbsolute,   // Global / absolute reference.
-    kSkeleton,   // Use skeleton rest pose root bone transform.
-    kAnimation,  // Uses root transform of the animation's first frame.
+    kAbsolute,   // Global / absolute (model-space identity) reference.
+    kSkeleton,   // Use the joint model-space skeleton rest pose.
+    kAnimation,  // Use the joint model-space transform of the first frame.
   };
 
   struct Settings {
